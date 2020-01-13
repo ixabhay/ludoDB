@@ -1,0 +1,390 @@
+[GUIDE]NodeJS MongoDB REST API for CRUD operations
+
+We'll use NodeJS Express framework for developing the web-interaction part and Mongoose for saving data to MongoDB.
+
+Install NodeJS and make a folder where your application will run from. This folder is production NodeJS server equivalent on Windows PC.
+
+Step 1: Having installed NodeJS now open Command Prompt Window in the folder.
+
+Quick Shortcut > Open the folder and click and tyep 'CMD' or 'cmd' in address bar.
+
+Step 2: Initialize the application with a package.json file. 
+Run following command in the command prompt window, 
+			$ npm init
+			
+			name: (userdb)
+			version:
+			description: enter description
+			entry point: server.js
+			test command:
+			git repository:
+			keywords:
+			author: Your Name
+			license: 
+			
+	Check details and type 'yes' to proceed.
+	
+Now our package.json is initialized and can be found in our project folder. 
+
+Note that we defined the entry point of our application as server.js so we'll make a file with the name 'server.js' had we left that blank the default name would have been 'index.js'
+
+Create new file next to package.json by the name 'server.js', leave it blank for now we'll come back to it later.
+
+Step 3: Installing dependencies
+Now we'll install support for Express, body-parser and Mongoose for application to use it. 
+Run folowing commands in CMD
+			$ npm install express body-parser mongoose --save
+			
+	Using '--save' at the end saves all the dependencies in the package.json file. 
+	
+Now if you'll take a look at our project folder you'll see another folder by the name 'node_modules'.
+
+Now let us setup our web server by editing the 'server.js' we created in Step 2.
+
+Step 3: Open 'server.js' and define the main entry point to our application. 
+
+		server.js
+		
+				const express = require('express');
+				const bodyParser = require('body-parser');
+				
+			// constant app will represent our application
+			// since app is based on express
+				const app = express();
+				
+			//parses requests of content-type - application/x-www-form-urlencoded
+				app.use(bodyParser.urlencoded({extended: true}))
+				
+			//parses requests of content-type -application/json
+				app.use(bodyParser.json())
+				
+			//defining a route to our application
+				app.get('/', (req, res) => {
+					res.json({
+					"message": "Nothing here, try making some API request."
+					});
+				});
+				
+			//listening to requests
+				app.listen(3000, () => {
+					console.log("Server running at port 3000!")
+				});
+
+Here, Express is a web framework that we are using to build REST APIs and body-parser is a module that parses the requests and creates req.body object that we can use in out routes.
+
+Then we define a route to our application that addresses get request to the naked url and responds with a message. We'll alter this message with more helpful data later.
+
+Finally we listen on port 3000 for incoming connection requests. 
+
+Let's fire up out server by calling 
+
+			$ node server.js
+			
+You may visit http://localhost:3000/ to check whether it is running or not. 
+
+Step 4: Now let us configure our database.
+Let's create new folder 'config' in out apps root folder where we'll be keeping all our configuration information separate.
+Inside the 'config' folder create a new file 'db.config.js' with following contents-
+
+			module.exports = {
+				url: 'mongodb://localhost:27017/db0'
+			}
+
+Now to import this 'db.config.js' file in 'server.js' and use it with 'mongoose'
+
+			//database congiguration
+				const dbConfig = require('./config/db.config.js');
+				const mongoose = require('mongoose');
+				
+				mongoose.Promise = global.Promise;
+				
+			//connection to database
+				mongoose.connect(dbConfig.url, {
+					useNewUrlParser: true
+				}).then(() => {
+					console.log('Connected to database');
+				}).catch(err => {
+					console.log('database connection failed...');
+					process.exit();
+				});
+
+Re-run the server to check if the database is being connected.
+
+			$ node server.js
+			
+To remove the deprecation warning 
+"(node:8076) DeprecationWarning: current Server Discovery and Monitoring engine is deprecated, and will be removed in a future version. To use the new Server Discover and Monitoring engine, pass option { useUnifiedTopology: true } to the MongoClient constructor."
+
+Just add ', useUnifiedTopology: true' after 'useNewUrlParser: true' so our 'server.js' is now
+
+		server.js
+
+				const express = require('express');
+				const bodyParser = require('body-parser');
+				
+				//database congiguration
+				const dbConfig = require('./config/db.config.js');
+				const mongoose = require('mongoose');
+				
+				mongoose.Promise = global.Promise;
+				
+				//connection to database
+				mongoose.connect(dbConfig.url, {
+					useNewUrlParser: true, useUnifiedTopology: true
+				}).then(() => {
+					console.log('Connected to database');
+				}).catch(err => {
+					console.log('database connection failed...');
+					process.exit();
+				});
+				
+				// constant app will represent our application
+				// app is based on express
+				const app = express();
+				
+				//parse requests of content-type - application/x-www-form-urlencoded
+				app.use(bodyParser.urlencoded({extended: true}))
+				
+				//parse requests of content-type -application/json
+				app.use(bodyParser.json())
+				
+				//defining a route to our application
+				app.get('/', (req, res) => {
+					res.json({
+					"message": "Nothing here, try making some API request."
+					});
+				});
+				
+				//listening to requests
+				
+				app.listen(3000, () => {
+					console.log("Server running at port 3000!")
+				});
+
+Re-run the server warning should be gone now.
+
+Quick Tip: The MongoDB database we just created can be viewed using MongoDB Atlas Applcation and passing the address 'mongodb://localhost:27017/db0' which we defined in 'db.config.js' file.
+
+Step 5: Now we have our NodeJS application running witha database connected. To save data to our MongoDB we will define a structure that will be followed for the data. We call this model. You can define more that a single type of model. 
+
+Create a new folder in the root directory of our application as 'app' and another folder inside 'app' as 'models'. Inside 'models' create a file by the name 'user.model.js'
+Now we define what our user's properties are. Inside 'user.model.js' enter content-
+
+		user.model.js
+
+				const mongoose = require('mongoose');
+				
+				const UserSchema = mongoose.Schema({
+					name: String,
+					email: String
+					}, {
+						timestamps: true
+					});
+				
+				module.exports = mongoose.model('User', UserSchema);
+
+
+Since I'll be logging and registering users using their Facebook login I defined only two string fields 'name' and 'email' which can be easily requested from Facebook login.
+
+Also adding 'timestamps: true' will add two field 'createdAt' and 'updatedAt' which can be usefull in their own way if required.
+
+Step 6: Now we will define various routes for the APIs.
+Create a new folder inside 'app' by the name 'routes'. Inside this folder we'll create a file 'user.route.js' with the content-
+
+		user.route.js
+
+				module.exports = (app) => {
+					var controller = "../controllers/user.controller.js";
+					const users = require(controller);
+				
+					//create a new user
+					app.post('/registeruser', users.create);
+				
+					//get all users' information
+					app.get('/allusers', users.listAll);
+				
+					//get single user with userId
+					app.get('/users/:userId', users.findOne);
+				
+					//update a user with userId
+					app.put('/users/:userId', users.update);
+				
+					//delete a User with userId
+					app.delete('/users/:userId', users.delete);
+					
+				}
+
+Note that we have defined a variable controller which points to an address of 'user.controller.js' file which we will define in next step.
+Before that let's first include 'user.route.js' in our 'server.js' file.
+Add the following lines of code before 'app.listen()' method inside 'server.js'
+		
+				//require Users routes
+					require('./app/routes/user.route.js')(app);
+					
+					
+Step 7: Now let's define our 'user.controller.js' that our 'user.route.js' depends on.
+Create a new folder by the name 'controllers' inside 'app' folder. Inside this create a new file 'user.controller.js' with following contents. 
+
+		user.controller.js
+		
+					const User = require('../models/user.model.js');
+
+				//register a new user
+					exports.create = (req, res) => {
+					
+					};
+					
+				//get all users' data
+					exports.listAll = (req, res) => {
+					
+					};
+					
+				//find single user with userId
+					exports.findOne = (req, res) => {
+					
+					};
+					
+				//update a user's information base on userId
+					exports.update = (req, res) => {
+					
+					};
+					
+				//delete user with userId
+					exports.delete = (req, res) => {
+					
+					};
+					
+Now we will implement these individual methods
+
+For registering a new user
+
+				//register a new user
+				exports.create = (req, res) => {
+				
+					//validate the request
+					if (!req.body.email) {
+						return res.status(400).send({
+							message: "User email id cannot be empty"
+						});
+					}
+				
+					//register a user
+					const user = new User({
+						name: req.body.name || "not defined",
+						email: req.body.email
+					});
+				
+					//save the user information in database
+					user.save().then(data => {
+						res.send(data);
+					}).catch(err => {
+						res.status(500).send({
+							message: err.message || "Something went wrong while registering new user.."
+						});
+					});
+				};
+
+
+For getting all users' data 
+
+				//get all users' data
+				exports.listAll = (req, res) => {
+					User.find().then(users => {
+						res.send(users);
+					}).catch(err => {
+						res.status(500).send({
+							message: err.message || "Something went wrong while getting all information"
+						});
+					});
+				};
+				
+For getting single user's information
+
+				//find single user with userId
+				exports.findOne = (req, res) => {
+					User.findById(req.params.userId).then(user => {
+						if (!user) {
+							return res.status(404).send({
+								message: "user not found with id " + req.params.userId
+							});
+						}
+						res.send(user);
+					}).catch(err => {
+						if (err.kind === 'ObjectId') {
+							return res.status(404).send({
+								message: "User not found with id " + req.params.userId
+							});
+						}
+						return res.status(500).send({
+							message: "Error getting user data with userId: " + req.params.userId
+						});
+					});
+				
+				};
+
+Updating a user's information
+
+				//update a user's information base on userId
+					exports.update = (req, res) => {
+						//validate request
+						if (!req.body.email) {
+							return res.status(400).send({
+								message: "Email ID cannot be left blank"
+							});
+						}
+						//find user by userId and update its name and email
+						User.findByIdAndUpdate(req.params.userId, {
+							name: req.body.name || "not defined",
+							email: req.body.email
+						}, {
+								new: true
+							}).then(user => {
+								if (!user) {
+									return res.status(404).send({
+										message: "User not found with userId " + req.params.userId
+									});
+								}
+								res.send(user);
+							}).catch(err => {
+								if (!user) {
+									return res.status(404).send({
+										message: "Error updating user with id " + req.params.userId
+									});
+								}
+								return res.status(500).send({
+									message: "Error updating user with id " + req.params.userId
+								});
+							});
+					};
+
+
+Deleting a user based on userId
+
+				//delete user with userId
+					exports.delete = (req, res) => {
+						User.findByIdAndRemove(req.params.userId).then(user => {
+							if (!user) {
+								return res.status(404).send({
+									message: "User not found with id " + req.params.userId
+								});
+							}
+							res.send({
+								message: "User deleted successfully!"
+							}).catch(err => {
+								if (err.kind === 'ObjectId' || err.name === 'Not Found') {
+									return res.status(404).send({
+										message: "User not found with id " + req.params.userId
+									});
+								}
+								return res.status(500).send({
+									message: "Could not delete user with id " + req.params.userId
+								});
+							});
+						});
+
+
+In order to test you API you can use Postman. Screenshot attached below for registering a new user.
+
+http://localhost:3000/allusers will retrieve all the data from database.
+
+In the next part I'll be making a login and registering pages and push the database and server to production. 
